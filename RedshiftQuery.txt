@@ -1,0 +1,14 @@
+CREATE EXTERNAL SCHEMA streamdemoschema 
+FROM KINESIS 
+IAM_ROLE 'arn:aws:iam::008971673059:role/redshift-kinesis_access_role'; 
+
+CREATE MATERIALIZED VIEW devicedataview AS 
+    SELECT approximate_arrival_timestamp, 
+    partition_key, 
+    shard_id,
+    sequence_number,
+    json_parse(from_varbyte(kinesis_data, 'utf-8')) as payload
+    FROM streamdemoschema."generic_kinesis_data";
+
+REFRESH MATERIALIZED VIEW devicedataview;
+SELECT * FROM devicedataview;
