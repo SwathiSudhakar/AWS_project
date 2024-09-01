@@ -15,8 +15,10 @@ def lambda_handler(event, context):
     user = os.environ['REDSHIFT_DB_USER']
     password = os.environ['REDSHIFT_DB_PASSWORD']
     delta_days = os.environ['DELTA_DAYS']
+    table_name = os.environ['REDSHIFT_TABLE_NAME']  # Fetch table name from env variables
 
     print(f"Redshift connection details: host={host}, port={port}, dbname={dbname}")
+    print(f"Using table: {table_name}")
 
     # Calculate the date range
     end_date = datetime.now()
@@ -48,13 +50,23 @@ def lambda_handler(event, context):
     cursor = conn.cursor()
 
     # Select records from the last delta_days
-    select_sql = """
-        SELECT * FROM public.irl_data
+    select_sql = f"""
+        SELECT * FROM {table_name}
         WHERE created BETWEEN %s AND %s;
     """
     print(f"Executing query: {select_sql} with parameters: ({start_date_str}, {end_date_str})")
     cursor.execute(select_sql, (start_date_str, end_date_str))
     rows = cursor.fetchall()
+
+    # Check if any records were retrieved
+    if len(rows) == 0:
+        print("No records found for the specified date range.")
+        cursor.close()
+        conn.close()
+        return {
+            'statusCode': 200,
+            'body': json.dumps('No records found. Nothing to process.')
+        }
 
     print(f"Number of rows retrieved: {len(rows)}")
 
@@ -78,8 +90,8 @@ def lambda_handler(event, context):
     print("CSV successfully uploaded to S3.")
 
     # Delete records from Redshift
-    delete_sql = """
-        DELETE FROM public.irl_data
+    delete_sql = f"""
+        DELETE FROM {table_name}
         WHERE created BETWEEN %s AND %s;
     """
     print(f"Executing delete query: {delete_sql} with parameters: ({start_date_str}, {end_date_str})")
