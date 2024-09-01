@@ -14,6 +14,8 @@ def lambda_handler(event, context):
     start_time = time.time()
     kinesis_client = boto3.client('kinesis')
     stream_name = 'generic_kinesis_data'
+    
+    records_cout = 145
 
     try:
         logger.info("Loading CSV data")
@@ -23,7 +25,7 @@ def lambda_handler(event, context):
         city_column = 'city'
         unique_cities = df[city_column].unique()
 
-        if len(unique_cities) < 160:
+        if len(unique_cities) < records_cout:
             logger.error(f"Insufficient unique cities: {len(unique_cities)}")
             return {
                 'statusCode': 400,
@@ -31,7 +33,7 @@ def lambda_handler(event, context):
             }
 
         logger.info("Selecting random cities")
-        selected_cities = random.sample(list(unique_cities), 160)
+        selected_cities = random.sample(list(unique_cities), records_cout)
 
         logger.info("Processing selected cities")
         selected_rows = []
@@ -49,9 +51,10 @@ def lambda_handler(event, context):
         response = kinesis_client.put_record(
             StreamName=stream_name,
             Data=json.dumps(selected_city_details_list),
-            PartitionKey='partition_key')
+            PartitionKey='partition_key_123')
         print("ingestion done")
-
+        print(response)
+        
         end_time = time.time()
         logger.info(f"Total execution time: {end_time - start_time:.2f} seconds")
 
